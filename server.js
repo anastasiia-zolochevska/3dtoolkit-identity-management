@@ -10,25 +10,23 @@ var port = process.env.PORT || 3000;
 var app = express();
 
 var postgresConfig = {
-    user: 'coturn@anzoloch-test-db', //env var: PGUSER 
-    database: 'coturndb', //env var: PGDATABASE 
-    password: '3Dstreaming0317', //env var: PGPASSWORD 
-    host: 'anzoloch-test-db.postgres.database.azure.com', // Server hosting the postgres database 
-    port: 5432, //env var: PGPORT 
+    user: process.env.PGUSER, 
+    database: process.env.PGDATABASE,
+    password: process.env.PGUSER, 
+    host: process.env.PGHOST, 
+    port: process.env.PGPORT, 
     max: 10, // max number of clients in the pool 
     idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed 
     ssl: true
 };
 
 
-// TODO: Update the first 3 variables
-var tenantID = "anzolochtest.onmicrosoft.com";
-var clientID = "ffe8068f-03bb-4efd-92d6-cb51feb7530c";
-var policyName = "b2c_1_signup";
+var tenantID = process.env.AAD_TENANT_ID
+var clientID = process.env.AAD_CLIENT_ID;
+var policyName = process.env.AAD_POLICY_NAME;
 
 var authOptions = {
     identityMetadata: "https://login.microsoftonline.com/" + tenantID + "/v2.0/.well-known/openid-configuration",
-    // identityMetadata: "https://login.microsoftonline.com/common/.well-known/openid-configuration",
     clientID: clientID,
     policyName: policyName,
     isB2C: true,
@@ -82,7 +80,7 @@ getSecret = function (realm) {
 }
 
 
-app.get('/turnCreds',
+app.get('/turnCreds/:realm',
    passport.authenticate('oauth-bearer', { session: false }),
     function (req, res) {
         var claims = req.authInfo;
@@ -90,7 +88,8 @@ app.get('/turnCreds',
         console.log('Validated claims: ', claims);
 
         var name = req.param("username") || "user";
-        getSecret("azturntst.org").then(secret => {
+        var realm = req.params.realm || "azturntst.org"
+        getSecret(realm).then(secret => {
             console.log(secret);
             var unixTimeStamp = parseInt(Date.now() / 1000) + 24 * 3600,
                 username = [unixTimeStamp, name].join(':'),
