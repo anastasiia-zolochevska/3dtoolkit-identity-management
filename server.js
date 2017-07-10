@@ -20,10 +20,9 @@ var postgresConfig = {
     ssl: true
 };
 
-
-var tenantID = process.env.AAD_TENANT_ID
-var clientID = process.env.AAD_CLIENT_ID;
-var policyName = process.env.AAD_POLICY_NAME;
+var tenantID = process.env.AAD_TENANT_ID || "3dtoolkit.onmicrosoft.com";
+var clientID = process.env.AAD_APPLICATION_ID || "aacf1b7a-104c-4efe-9ca7-9f4916d6b66a";
+var policyName = process.env.AAD_B2C_POLICY_NAME|| "b2c_1_signup";
 
 var authOptions = {
     identityMetadata: "https://login.microsoftonline.com/" + tenantID + "/v2.0/.well-known/openid-configuration",
