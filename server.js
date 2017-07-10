@@ -12,7 +12,7 @@ var app = express();
 var postgresConfig = {
     user: process.env.PGUSER, 
     database: process.env.PGDATABASE,
-    password: process.env.PGUSER, 
+    password: process.env.PGPASSWORD, 
     host: process.env.PGHOST, 
     port: process.env.PGPORT, 
     max: 10, // max number of clients in the pool 
