@@ -49,8 +49,16 @@ passport.use(bearerStrategy);
 app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Authorization, Origin, X-Requested-With, Content-Type, Accept");
-    next();
+
+    if (req.method == 'OPTIONS') {
+        res.sendStatus(200);
+    } else {
+        next();
+    }
 });
+
+
+
 
 app.all('*', function (req, res, next) {
     if (process.env.AUTH_DISABLED) {
@@ -80,22 +88,24 @@ getSecret = function (realm) {
                 reject('error fetching client from pool' + err);
 
             }
-            const query = {
-                // give the query a unique name
-                name: 'fetch-secret',
-                text: 'SELECT * FROM turn_secret WHERE realm = $1',
-                values: [realm]
-            }
-            client.query(query, function (err, result) {
-
-                if (err) {
-                    reject('error running query' + err);
+            else {
+                const query = {
+                    // give the query a unique name
+                    name: 'fetch-secret',
+                    text: 'SELECT * FROM turn_secret WHERE realm = $1',
+                    values: [realm]
                 }
-                else if (!result || !result.rows[0]) {
-                    reject("no secret set in db for realm " + realm);
+                client.query(query, function (err, result) {
 
-                } else resolve(result.rows[0].value)
-            });
+                    if (err) {
+                        reject('error running query' + err);
+                    }
+                    else if (!result || !result.rows[0]) {
+                        reject("no secret set in db for realm " + realm);
+
+                    } else resolve(result.rows[0].value)
+                });
+            }
 
         })
     });
@@ -128,10 +138,10 @@ app.get('/turnCreds',
                 throw e;
             }
 
-        }, err => { 
+        }, err => {
             log(err);
             res.sendStatus(500);
-         });
+        });
 
     });
 
