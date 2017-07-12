@@ -12,7 +12,7 @@ var app = express();
 var postgresConfig = {
     user: process.env.PGUSER || "coturn@azturntstpsqlsrv",
     database: process.env.PGDATABASE || "coturndb",
-    password: process.env.PGPASSWORD || "3Dstreaming0317",
+    password: process.env.PGPASSWORD,
     host: process.env.PGHOST || "azturntstpsqlsrv.postgres.database.azure.com",
     port: process.env.PGPORT || 5432,
     max: 10, // max number of clients in the pool 
