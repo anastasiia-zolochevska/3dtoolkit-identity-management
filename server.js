@@ -10,11 +10,11 @@ var port = process.env.PORT || 3000;
 var app = express();
 
 var postgresConfig = {
-    user: process.env.PGUSER, 
-    database: process.env.PGDATABASE,
-    password: process.env.PGPASSWORD, 
-    host: process.env.PGHOST, 
-    port: process.env.PGPORT, 
+    user: process.env.PGUSER || "coturn@azturntstpsqlsrv",
+    database: process.env.PGDATABASE || "coturndb",
+    password: process.env.PGPASSWORD || "3Dstreaming0317",
+    host: process.env.PGHOST || "azturntstpsqlsrv.postgres.database.azure.com",
+    port: process.env.PGPORT || 5432,
     max: 10, // max number of clients in the pool 
     idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed 
     ssl: true
@@ -22,7 +22,7 @@ var postgresConfig = {
 
 var tenantID = process.env.AAD_TENANT_ID || "3dtoolkit.onmicrosoft.com";
 var clientID = process.env.AAD_APPLICATION_ID || "aacf1b7a-104c-4efe-9ca7-9f4916d6b66a";
-var policyName = process.env.AAD_B2C_POLICY_NAME|| "b2c_1_signup";
+var policyName = process.env.AAD_B2C_POLICY_NAME || "b2c_1_signup";
 
 var authOptions = {
     identityMetadata: "https://login.microsoftonline.com/" + tenantID + "/v2.0/.well-known/openid-configuration",
@@ -49,6 +49,25 @@ app.use(function (req, res, next) {
     next();
 });
 
+app.all('*', function (req, res, next) {
+    if (process.env.AUTH_DISABLED) {
+        console.log("----------AUTH_DISABLED--------")
+        next();
+    }
+    else {
+        passport.authenticate('oauth-bearer', function (err, user, info) {
+            if (user) {
+                var claims = req.authInfo;
+                console.log('User info: ', req.user);
+                console.log('Validated claims: ', claims);
+                next();
+            }
+            else {
+                res.sendStatus(401);
+            }
+        })(req, res, next);
+    }
+});
 
 getSecret = function (realm) {
     const client = new pg.Client(postgresConfig);
@@ -70,7 +89,6 @@ getSecret = function (realm) {
                     console.error('error running query', err);
                     reject('error running query', err);
                 }
-                console.log(result.rows[0]);
                 resolve(result.rows[0].value)
             });
 
@@ -80,12 +98,7 @@ getSecret = function (realm) {
 
 
 app.get('/turnCreds/:realm',
-   passport.authenticate('oauth-bearer', { session: false }),
     function (req, res) {
-        var claims = req.authInfo;
-        console.log('User info: ', req.user);
-        console.log('Validated claims: ', claims);
-
         var name = req.param("username") || "user";
         var realm = req.params.realm || "azturntst.org"
         getSecret(realm).then(secret => {
