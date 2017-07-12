@@ -4,6 +4,9 @@ var crypto = require('crypto');
 var Promise = require('promise');
 var passport = require("passport");
 var BearerStrategy = require('passport-azure-ad').BearerStrategy;
+var appInsights = require('applicationinsights');
+appInsights.setup().setAutoCollectExceptions(true).start();
+
 
 var port = process.env.PORT || 3000;
 
@@ -51,15 +54,15 @@ app.use(function (req, res, next) {
 
 app.all('*', function (req, res, next) {
     if (process.env.AUTH_DISABLED) {
-        console.log("----------AUTH_DISABLED--------")
+        log("----------AUTH_DISABLED--------")
         next();
     }
     else {
         passport.authenticate('oauth-bearer', function (err, user, info) {
             if (user) {
                 var claims = req.authInfo;
-                console.log('User info: ', req.user);
-                console.log('Validated claims: ', claims);
+                log('User info: ', req.user);
+                log('Validated claims: ', claims);
                 next();
             }
             else {
@@ -74,7 +77,7 @@ getSecret = function (realm) {
     return new Promise(function (resolve, reject) {
         client.connect(function (err, client, done) {
             if (err) {
-                return console.error('error fetching client from pool', err);
+                reject('error fetching client from pool' + err);
 
             }
             const query = {
@@ -86,10 +89,12 @@ getSecret = function (realm) {
             client.query(query, function (err, result) {
 
                 if (err) {
-                    console.error('error running query', err);
-                    reject('error running query', err);
+                    reject('error running query' + err);
                 }
-                resolve(result.rows[0].value)
+                else if (!result || !result.rows[0]) {
+                    reject("no secret set in db for realm " + realm);
+
+                } else resolve(result.rows[0].value)
             });
 
         })
@@ -97,29 +102,46 @@ getSecret = function (realm) {
 }
 
 
-app.get('/turnCreds/:realm',
+app.get('/turnCreds',
     function (req, res) {
-        var name = req.param("username") || "user";
-        var realm = req.params.realm || "azturntst.org"
-        getSecret(realm).then(secret => {
-            console.log(secret);
-            var unixTimeStamp = parseInt(Date.now() / 1000) + 24 * 3600,
-                username = [unixTimeStamp, name].join(':'),
-                password,
-                hmac = crypto.createHmac('sha1', secret);
-            hmac.setEncoding('base64');
-            hmac.write(username);
-            hmac.end();
-            password = hmac.read();
-            res.send({
-                username: username,
-                password: password
-            });
 
-        });
+        var name = req.query.username || "user";
+        var realm = req.query.realm || "azturntst.org"
+        log(name + ' ' + realm)
+        getSecret(realm).then(secret => {
+            try {
+                var unixTimeStamp = parseInt(Date.now() / 1000) + 24 * 3600,
+                    username = [unixTimeStamp, name].join(':'),
+                    password,
+                    hmac = crypto.createHmac('sha1', secret);
+                hmac.setEncoding('base64');
+                hmac.write(username);
+                hmac.end();
+                password = hmac.read();
+                res.send({
+                    username: username,
+                    password: password
+                });
+            }
+            catch (e) {
+                log(e);
+                throw e;
+            }
+
+        }, err => { 
+            log(err);
+            res.sendStatus(500);
+         });
+
     });
 
 
+function log(message) {
+    appInsights.client.trackTrace(message);
+    console.log(message);
+
+}
+
 app.listen(port, function () {
-    console.log('Example app listening on port 3000!')
+    log('Example app listening on port 3000!')
 })
