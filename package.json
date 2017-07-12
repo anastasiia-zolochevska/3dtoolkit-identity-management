@@ -2,9 +2,6 @@
   "name": "identity-management",
   "version": "0.0.1",
   "description": "identity-management",
-  "cpu": [
-    "x64"
-  ],
   "dependencies": {
     "applicationinsights": "^0.21.0",
     "crypto": "0.0.3",
