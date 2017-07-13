@@ -61,7 +61,7 @@ app.use(function (req, res, next) {
 
 
 app.all('*', function (req, res, next) {
-    if (process.env.AUTH_DISABLED) {
+    if (process.env.AUTH_DISABLED && process.env.AUTH_DISABLED!="false") {
         log("----------AUTH_DISABLED--------")
         next();
     }
