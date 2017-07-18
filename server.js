@@ -4,11 +4,12 @@ var crypto = require('crypto');
 var Promise = require('promise');
 var passport = require("passport");
 var BearerStrategy = require('passport-azure-ad').BearerStrategy;
+process.env.APPINSIGHTS_INSTRUMENTATIONKEY = process.env.APPINSIGHTS_INSTRUMENTATIONKEY || "NO_APPLICATION_INSIGHTS";
 var appInsights = require('applicationinsights');
 appInsights.setup().setAutoCollectExceptions(true).start();
 
 
-var port = process.env.PORT || 3000;
+var port = process.env.PORT || 3002;
 
 var app = express();
 
@@ -23,54 +24,60 @@ var postgresConfig = {
     ssl: true
 };
 
-var tenantID = process.env.AAD_TENANT_ID || "3dtoolkit.onmicrosoft.com";
-var clientID = process.env.AAD_APPLICATION_ID || "aacf1b7a-104c-4efe-9ca7-9f4916d6b66a";
-var policyName = process.env.AAD_B2C_POLICY_NAME || "b2c_1_signup";
 
-var authOptions = {
-    identityMetadata: "https://login.microsoftonline.com/" + tenantID + "/v2.0/.well-known/openid-configuration",
-    clientID: clientID,
-    policyName: policyName,
+var b2cStrategy = new BearerStrategy({
+    identityMetadata: "https://login.microsoftonline.com/" + (process.env.AAD_TENANT_ID || "3dtoolkit.onmicrosoft.com") + "/v2.0/.well-known/openid-configuration",
+    clientID: process.env.AAD_B2C_CLIENT_APPLICATION_ID || "aacf1b7a-104c-4efe-9ca7-9f4916d6b66a",
+    policyName: process.env.AAD_B2C_POLICY_NAME || "b2c_1_signup",
     isB2C: true,
     validateIssuer: true,
     loggingLevel: 'info',
-    passReqToCallback: false
-};
-
-var bearerStrategy = new BearerStrategy(authOptions,
+    passReqToCallback: false,
+},
     function (token, done) {
-        // Send user info using the second argument
-        done(null, {}, token);
+        return done(null, {}, token);
     }
-);
+)
+b2cStrategy.name="oauth-bearer-b2c";
 
-passport.use(bearerStrategy);
+passport.use(b2cStrategy);
+
+passport.use(new BearerStrategy({
+    identityMetadata: "https://login.microsoftonline.com/" + (process.env.AAD_TENANT_ID || "3dtoolkit.onmicrosoft.com") + "/.well-known/openid-configuration",
+    clientID: process.env.AAD_RENDERING_SERVER_APPLICATION_ID || "5b4df04b-e3bb-4710-92ca-e875d38171b3",
+    isB2C: false,
+    validateIssuer: true,
+    loggingLevel: 'info',
+    passReqToCallback: false
+},
+    function (token, done) {
+        return done(null, {}, token);
+    }
+));
+
 
 app.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
-    res.header("Access-Control-Allow-Headers", "Authorization, Origin, X-Requested-With, Content-Type, Accept");
-
-    if (req.method == 'OPTIONS') {
+    res.header("Access-Control-Allow-Headers", "Authorization, Origin, X-Requested-With, Content-Type, Accept, Peer-Type");
+    if ('OPTIONS' == req.method) {
         res.sendStatus(200);
     } else {
         next();
     }
+
 });
 
-
-
-
 app.all('*', function (req, res, next) {
-    if (process.env.AUTH_DISABLED && process.env.AUTH_DISABLED!="false") {
-        log("----------AUTH_DISABLED--------")
+    log(req.url);
+    if (req.query.peer_id && peers[req.query.peer_id]) {
+        peers[req.query.peer_id].lastSeenActive = (new Date()).getTime();
+    }
+    if (process.env.AUTH_DISABLED && process.env.AUTH_DISABLED!="False" &&  process.env.AUTH_DISABLED!="false") {
         next();
     }
     else {
-        passport.authenticate('oauth-bearer', function (err, user, info) {
-            if (user) {
-                var claims = req.authInfo;
-                log('User info: ', req.user);
-                log('Validated claims: ', claims);
+        passport.authenticate(['oauth-bearer', 'oauth-bearer-b2c'], function (err, user, info) {
+            if (!err && info) {
                 next();
             }
             else {
@@ -79,6 +86,7 @@ app.all('*', function (req, res, next) {
         })(req, res, next);
     }
 });
+
 
 getSecret = function (realm) {
     const client = new pg.Client(postgresConfig);
@@ -153,5 +161,5 @@ function log(message) {
 }
 
 app.listen(port, function () {
-    log('Example app listening on port 3000!')
+    log('Example app listening on port '+port)
 })
