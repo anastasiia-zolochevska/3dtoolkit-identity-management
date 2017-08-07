@@ -3,6 +3,7 @@ const supertest = require('supertest')
 const express = require('express')
 const passport = require('passport')
 const bodyParser = require('body-parser')
+const uuid = require('uuid/v4')
 const app = require('../lib/application')
 const device = require('../lib/device')
 const MockStrategy = require('./mock-passport-strategy')
@@ -58,7 +59,7 @@ describe('3dtoolkit-identity-management', () => {
 
             passport.use(new MockStrategy((req, self) => {
                 if (success) {
-                    self.success({}, {})
+                    self.success({access_token: uuid()}, {})
                 } else {
                     self.fail({})
                 }
@@ -108,6 +109,38 @@ describe('3dtoolkit-identity-management', () => {
                         .send(`user_code=${userCode}`)
                         .expect(200)
                         .then((res) => { /* mask response object on sucess */})
+                })
+                .then(done, done)
+        })
+
+        it('should poll a valid code after submission', (done) => {
+            const tester = supertest(buildDeviceAuthMock(true))
+            
+            tester
+                .get('/device/new')
+                .expect('Content-Type', /json/)
+                .expect(200)
+                .then((res) => {
+                    assert(res.body.user_code !== 'undefined')
+                    assert(res.body.device_code !== 'undefined')
+                    
+                    return [res.body.user_code, res.body.device_code]
+                })
+                .then((arr) => {
+                    const userCode = arr[0]
+                    const deviceCode = arr[1]
+
+                    return tester
+                        .post('/device/user_code')
+                        .send(`user_code=${userCode}`)
+                        .expect(200)
+                        .then((res) => { return deviceCode })
+                })
+                .then((deviceCode) => {
+                    return tester
+                        .get(`/device/device_code?device_code=${deviceCode}`)
+                        .expect(200, /access_code/)
+                        .then((res) => {/* mask response object on sucess */})
                 })
                 .then(done, done)
         })
