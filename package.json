@@ -2,15 +2,27 @@
   "name": "identity-management",
   "version": "0.0.1",
   "description": "identity-management",
+  "scripts": {
+    "start": "node server.js",
+    "test": "mocha"
+  },
   "dependencies": {
     "applicationinsights": "^0.21.0",
+    "body-parser": "^1.17.2",
     "crypto": "0.0.3",
     "express": "^4.15.2",
+    "express-session": "^1.15.5",
     "install": "^0.10.1",
+    "moment": "^2.18.1",
     "npm": "^5.0.3",
     "passport": "^0.3.2",
     "passport-azure-ad": "^3.0.7",
     "pg": "^6.2.3",
-    "promise": "^7.1.1"
+    "promise": "^7.1.1",
+    "uuid": "^3.1.0"
+  },
+  "devDependencies": {
+    "mocha": "^3.5.0",
+    "supertest": "^3.0.0"
   }
 }
