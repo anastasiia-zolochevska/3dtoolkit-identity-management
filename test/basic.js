@@ -88,7 +88,7 @@ describe('3dtoolkit-identity-management', () => {
         it('should be served the code form', (done) => {
             supertest(buildDeviceAuthMock(true))
                 .get('/device')
-                .expect(200,"<form action='/device/user_code' method='POST'><input type='text' name='user_code' /></form>", done)
+                .expect(200,"<form action=\'/device/user_code\' method=\'POST\'><input type=\'text\' name=\'user_code\' /></form><a href=\'/device/logout\'>Logout</a>", done)
         })
 
         it('should be able to submit a valid code', (done) => {
